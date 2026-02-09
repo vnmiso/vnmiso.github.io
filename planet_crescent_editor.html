@@ -391,10 +391,10 @@ const DEFAULT_CODE = `// === Planet Crescent SVG Generator ===
 
 // ─── Geometry ───
 const cx = 200, cy = 200;   // planet center
-const R = 170;               // planet radius
-const arcAngle = 15;         // degrees beyond semicircle (determines intersection points)
-const maxDist = R / 4;       // max crescent width at top (where circles are furthest apart)
-const numPoints = 150;       // path resolution
+const R = 170;              // planet radius
+const arcAngle = 10;        // degrees beyond semicircle (determines intersection points)
+const maxDist = R / 2.5;    // max crescent width at top (where circles are furthest apart)
+const numPoints = 150;      // path resolution
 
 // ─── Colors ───
 // Gradient stops: [offset%, color] - supports #RGB, #RGBA, #RRGGBB, #RRGGBBAA
@@ -403,12 +403,12 @@ const gradientStops = [
   [0,   "#182848"],
   [40,  "#3366cc"],
   [75,  "#5599ee"],
-  [100, "#88ccff"],
+  [100, "#a4dbfe"],
 ];
+const numBands = 50;        // number of color bands
 
 // ─── Fade ───
-const numBands = 30;         // number of opacity bands
-const fadePower = 1.2;       // fade curve exponent (higher = sharper edge)
+const fadePower = 1;       // fade curve exponent (higher = sharper edge)
 
 // ══════════════════════════════════════
 // Generator
