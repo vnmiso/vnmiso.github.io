@@ -218,7 +218,25 @@
     background: repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 50% / 10px 10px;
   }
   .bg-toggle .bg-light { background: #e0e4ec; }
-  .bg-toggle .bg-blue { background: #0a1628; }
+  .bg-toggle .bg-blue { background: #080f19; }
+
+  .bg-toggle input[type="color"] {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    padding: 0;
+    background: none;
+    transition: all 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .bg-toggle input[type="color"]:hover { transform: scale(1.15); }
+  .bg-toggle input[type="color"].active { border-color: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+  .bg-toggle input[type="color"]::-webkit-color-swatch-wrapper { padding: 1px; }
+  .bg-toggle input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+  .bg-toggle input[type="color"]::-moz-color-swatch { border: none; border-radius: 2px; }
 
   .preview-container {
     flex: 1;
@@ -241,7 +259,7 @@
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
   }
   .preview-container.bg-light { background: #e0e4ec; }
-  .preview-container.bg-blue { background: #0a1628; }
+  .preview-container.bg-blue { background: #080f19; }
 
   #preview {
     max-width: 90%;
@@ -348,13 +366,14 @@
         <div class="tab active">Preview</div>
       </div>
       <div class="bg-toggle">
-        <button class="bg-dark active" title="Dark" onclick="setBg('bg-dark', this)"></button>
+        <button class="bg-dark" title="Dark" onclick="setBg('bg-dark', this)"></button>
         <button class="bg-checker" title="Checker" onclick="setBg('bg-checker', this)"></button>
-        <button class="bg-blue" title="Deep blue" onclick="setBg('bg-blue', this)"></button>
+        <button class="bg-blue active" title="Deep blue" onclick="setBg('bg-blue', this)"></button>
         <button class="bg-light" title="Light" onclick="setBg('bg-light', this)"></button>
+        <input type="color" id="bgColorPicker" value="#080f19" title="Custom color" oninput="setCustomBg(this)">
       </div>
     </div>
-    <div class="preview-container bg-dark" id="previewContainer">
+    <div class="preview-container bg-blue" id="previewContainer">
       <img id="preview" />
     </div>
   </div>
@@ -592,8 +611,16 @@ function exportSVG() {
 
 function setBg(cls, btn) {
   previewContainer.className = 'preview-container ' + cls;
-  document.querySelectorAll('.bg-toggle button').forEach(b => b.classList.remove('active'));
+  previewContainer.style.background = '';
+  document.querySelectorAll('.bg-toggle button, .bg-toggle input[type="color"]').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+}
+
+function setCustomBg(input) {
+  previewContainer.className = 'preview-container';
+  previewContainer.style.background = input.value;
+  document.querySelectorAll('.bg-toggle button').forEach(b => b.classList.remove('active'));
+  input.classList.add('active');
 }
 
 // Auto-reload on edit
