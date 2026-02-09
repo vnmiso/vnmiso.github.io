@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Planet Crescent — Live SVG Editor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap');
+
+  :root {
+    --bg: #0c0e14;
+    --panel: #12151e;
+    --border: #1e2233;
+    --text: #c8cdd8;
+    --text-dim: #5a6178;
+    --accent: #4a90d9;
+    --accent-glow: #4a90d940;
+    --editor-bg: #0a0c12;
+    --line-num: #2a3048;
+    --scrollbar: #1e2233;
+    --scrollbar-thumb: #2a3048;
+    --success: #4ecb71;
+    --error: #e05555;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  header .title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  header .title svg { opacity: 0.7; }
+
+  header .status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+  }
+
+  header .status.ok { color: var(--success); background: #4ecb7115; }
+  header .status.err { color: var(--error); background: #e0555515; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .controls label {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .controls select, .controls button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--editor-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .controls select:hover, .controls button:hover {
+    border-color: var(--accent);
+  }
+
+  .controls button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+  }
+
+  .controls button:hover { opacity: 0.85; }
+
+  /* Main layout */
+  main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Editor pane */
+  .editor-pane {
+    width: 55%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 300px;
+  }
+
+  .editor-pane .tab-bar {
+    display: flex;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+
+  .tab-bar .tab {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px 14px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab-bar .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab-bar .tab:hover { color: var(--text); }
+
+  .editor-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #editor {
+    width: 100%;
+    height: 100%;
+    background: var(--editor-bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    padding: 16px;
+    border: none;
+    outline: none;
+    resize: none;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+  }
+
+  #editor::-webkit-scrollbar { width: 8px; height: 8px; }
+  #editor::-webkit-scrollbar-track { background: var(--editor-bg); }
+  #editor::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+
+  /* Preview pane */
+  .preview-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 300px;
+  }
+
+  .preview-pane .tab-bar {
+    display: flex;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink: 0;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .preview-header-left { display: flex; }
+
+  .bg-toggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .bg-toggle button {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .bg-toggle button:hover { transform: scale(1.15); }
+  .bg-toggle button.active { border-color: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+
+  .bg-toggle .bg-dark { background: #0c0e14; }
+  .bg-toggle .bg-checker {
+    background: repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 50% / 10px 10px;
+  }
+  .bg-toggle .bg-light { background: #e0e4ec; }
+  .bg-toggle .bg-blue { background: #0a1628; }
+
+  .preview-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    transition: background 0.3s;
+  }
+
+  .preview-container.bg-dark { background: #0c0e14; }
+  .preview-container.bg-checker {
+    background-color: #1a1a2e;
+    background-image:
+      linear-gradient(45deg, #222240 25%, transparent 25%),
+      linear-gradient(-45deg, #222240 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #222240 75%),
+      linear-gradient(-45deg, transparent 75%, #222240 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  }
+  .preview-container.bg-light { background: #e0e4ec; }
+  .preview-container.bg-blue { background: #0a1628; }
+
+  #preview {
+    max-width: 90%;
+    max-height: 90%;
+    filter: drop-shadow(0 0 30px #4a90d920);
+  }
+
+  /* Error overlay */
+  .error-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #1a0a0a;
+    border-top: 1px solid var(--error);
+    padding: 10px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--error);
+    max-height: 120px;
+    overflow: auto;
+    display: none;
+    z-index: 10;
+  }
+
+  .error-overlay.visible { display: block; }
+
+  /* Resize handle */
+  .resize-handle {
+    width: 5px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  .resize-handle:hover, .resize-handle.active {
+    background: var(--accent);
+  }
+
+  /* Footer */
+  footer {
+    padding: 6px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  /* Kbd hint */
+  kbd {
+    background: var(--editor-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M 11 3.5 A 5 5 0 0 1 11 12.5 Q 8 10 8 8 Q 8 6 11 3.5 Z" fill="currentColor" opacity="0.5"/>
+    </svg>
+    SVG CRESCENT LAB
+  </div>
+  <div class="controls">
+    <label>Auto-reload:</label>
+    <select id="reloadMode">
+      <option value="auto">On keystroke (300ms)</option>
+      <option value="manual">Manual only</option>
+    </select>
+    <button onclick="runCode()">▶ Run</button>
+    <button onclick="exportSVG()">⬇ Export SVG</button>
+    <div class="status ok" id="status">● Ready</div>
+  </div>
+</header>
+
+<main>
+  <div class="editor-pane" id="editorPane">
+    <div class="tab-bar">
+      <div class="tab active">generator.js</div>
+    </div>
+    <div class="editor-wrap">
+      <textarea id="editor" spellcheck="false"></textarea>
+      <div class="error-overlay" id="errorOverlay"></div>
+    </div>
+  </div>
+
+  <div class="resize-handle" id="resizeHandle"></div>
+
+  <div class="preview-pane">
+    <div class="tab-bar">
+      <div class="preview-header-left">
+        <div class="tab active">Preview</div>
+      </div>
+      <div class="bg-toggle">
+        <button class="bg-dark active" title="Dark" onclick="setBg('bg-dark', this)"></button>
+        <button class="bg-checker" title="Checker" onclick="setBg('bg-checker', this)"></button>
+        <button class="bg-blue" title="Deep blue" onclick="setBg('bg-blue', this)"></button>
+        <button class="bg-light" title="Light" onclick="setBg('bg-light', this)"></button>
+      </div>
+    </div>
+    <div class="preview-container bg-dark" id="previewContainer">
+      <img id="preview" />
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run &nbsp;|&nbsp; <kbd>Tab</kbd> inserts spaces</span>
+  <span id="cursorPos">Ln 1, Col 1</span>
+</footer>
+
+<script>
+// Default generator code
+const DEFAULT_CODE = `// === Planet Crescent SVG Generator ===
+// Two-circle model: Planet circle + Shading circle
+
+// ─── Geometry ───
+const cx = 200, cy = 200;   // planet center
+const R = 170;               // planet radius
+const arcAngle = 15;         // degrees beyond semicircle (determines intersection points)
+const maxDist = R / 4;       // max crescent width at top (where circles are furthest apart)
+const numPoints = 150;       // path resolution
+
+// ─── Colors ───
+// Gradient stops: [offset%, color] - supports #RGB, #RGBA, #RRGGBB, #RRGGBBAA
+// 0% = shading circle edge (inner/dark), 100% = planet circle edge (outer/bright)
+const gradientStops = [
+  [0,   "#182848"],
+  [40,  "#3366cc"],
+  [75,  "#5599ee"],
+  [100, "#88ccff"],
+];
+
+// ─── Fade ───
+const numBands = 30;         // number of opacity bands
+const fadePower = 1.2;       // fade curve exponent (higher = sharper edge)
+
+// ══════════════════════════════════════
+// Generator
+// ══════════════════════════════════════
+// The shading circle's center is offset downward from the planet center.
+// Its radius is computed so that:
+//   1. It intersects the planet circle at angles (-arcAngle) and (180+arcAngle)
+//   2. The maximum distance between circles (at top) equals maxDist
+
+function generate() {
+  // Compute shading circle parameters from constraints
+  const arcRad = arcAngle * Math.PI / 180;
+  const s = Math.sin(arcRad);
+  // d = vertical offset of shading circle center below planet center
+  const d = maxDist * (2*R - maxDist) / (2*R*(s + 1) - 2*maxDist);
+  // rShade = radius of the shading circle
+  const rShade = R + d - maxDist;
+  const shadeCy = cy + d;  // shading circle center y-coordinate
+
+  // Arc angles for the visible crescent
+  const arcStart = -arcAngle;
+  const arcEnd = 180 + arcAngle;
+
+  const angles = [];
+  for (let i = 0; i <= numPoints; i++) {
+    angles.push(arcStart + i * (arcEnd - arcStart) / numPoints);
+  }
+
+  function toRad(deg) { return deg * Math.PI / 180; }
+
+  // Parse hex color to RGBA (supports #RGB, #RGBA, #RRGGBB, #RRGGBBAA)
+  function hexToRgba(hex) {
+    let r = 0, g = 0, b = 0, a = 255;
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3 || hex.length === 4) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+      if (hex.length === 4) a = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 6 || hex.length === 8) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+      if (hex.length === 8) a = parseInt(hex.slice(6, 8), 16);
+    }
+    return [r, g, b, a / 255];  // alpha normalized to 0-1
+  }
+
+  // Interpolate color from gradient stops based on fraction
+  // fraction: 0 = planet edge (100% stop), 1 = shading edge (0% stop)
+  // Returns [r, g, b, a] where a is 0-1
+  function interpolateColor(fraction) {
+    const pct = (1 - fraction) * 100;  // map to gradient percentage
+
+    // Find bracketing stops
+    let lowerIdx = 0;
+    for (let i = 0; i < gradientStops.length - 1; i++) {
+      if (pct >= gradientStops[i][0]) lowerIdx = i;
+    }
+    const upperIdx = Math.min(lowerIdx + 1, gradientStops.length - 1);
+
+    const [loPct, loHex] = gradientStops[lowerIdx];
+    const [hiPct, hiHex] = gradientStops[upperIdx];
+
+    const range = hiPct - loPct;
+    const t = range === 0 ? 0 : (pct - loPct) / range;
+
+    const c1 = hexToRgba(loHex);
+    const c2 = hexToRgba(hiHex);
+
+    return [
+      Math.round(c1[0] + t * (c2[0] - c1[0])),
+      Math.round(c1[1] + t * (c2[1] - c1[1])),
+      Math.round(c1[2] + t * (c2[2] - c1[2])),
+      c1[3] + t * (c2[3] - c1[3])  // alpha stays as float
+    ];
+  }
+
+  // Point on the planet circle at given angle
+  function pointOnPlanet(angle) {
+    const rad = toRad(angle);
+    return [cx + R * Math.cos(rad), cy - R * Math.sin(rad)];
+  }
+
+  // Crescent width at a given angle (distance from planet edge to shading circle)
+  function crescentWidth(angle) {
+    const [px, py] = pointOnPlanet(angle);
+    const dx = px - cx;
+    const dy = py - shadeCy;
+    const distToShadeCenter = Math.sqrt(dx*dx + dy*dy);
+    return Math.max(0, distToShadeCenter - rShade);
+  }
+
+  // Point at fractional distance from planet edge toward shading circle
+  // fraction: 0 = planet edge, 1 = shading circle edge
+  function pointAt(angle, fraction) {
+    const [px, py] = pointOnPlanet(angle);
+    const width = crescentWidth(angle);
+    // Direction from planet point toward shading center
+    const dx = cx - px;
+    const dy = shadeCy - py;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len < 0.01) return [px, py];
+    return [px + (dx/len) * width * fraction, py + (dy/len) * width * fraction];
+  }
+
+  function toPathStr(pts) {
+    return "M " + pts.map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" L ");
+  }
+
+  // Outer arc clip path (hard edge at planet circle)
+  const outerPts = angles.map(a => pointOnPlanet(a));
+  const clipPath = toPathStr(outerPts) + " Z";
+
+  // Build colored bands with gradient color + fade opacity baked in
+  let bands = '';
+  for (let b = 0; b < numBands; b++) {
+    const fOuter = b / numBands;
+    const fInner = (b + 1) / numBands;
+    const fMid = (fOuter + fInner) / 2;
+
+    // Get interpolated color for this band's position (includes alpha)
+    const [r, g, b_, a] = interpolateColor(fMid);
+    // Compute final opacity: color alpha * fade
+    const opacity = a * Math.pow(1 - fMid, fadePower);
+
+    const bandOuter = angles.map(a => pointAt(a, fOuter));
+    const bandInner = angles.map(a => pointAt(a, fInner));
+
+    const pathD = toPathStr(bandOuter) + " L " +
+      [...bandInner].reverse().map(p => p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" L ") + " Z";
+
+    bands += '\\n    <path d="' + pathD + '" fill="rgb(' + r + ',' + g + ',' + b_ + ')" fill-opacity="' + opacity.toFixed(3) + '"/>';
+  }
+
+  return \`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <defs>
+    <clipPath id="outerArcClip">
+      <path d="\${clipPath}"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#outerArcClip)">\${bands}
+  </g>
+</svg>\`;
+}
+
+return generate();
+`;
+
+const editor = document.getElementById('editor');
+const preview = document.getElementById('preview');
+const status = document.getElementById('status');
+const errorOverlay = document.getElementById('errorOverlay');
+const cursorPos = document.getElementById('cursorPos');
+const previewContainer = document.getElementById('previewContainer');
+
+editor.value = DEFAULT_CODE;
+
+let debounceTimer = null;
+let lastSvg = '';
+
+function runCode() {
+  try {
+    const code = editor.value;
+    const fn = new Function(code);
+    const svgString = fn();
+
+    if (typeof svgString !== 'string' || !svgString.includes('<svg')) {
+      throw new Error('Generator must return an SVG string. Make sure the last line is: return generate();');
+    }
+
+    lastSvg = svgString;
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    preview.onload = () => URL.revokeObjectURL(url);
+    preview.src = url;
+
+    status.textContent = '● OK';
+    status.className = 'status ok';
+    errorOverlay.classList.remove('visible');
+  } catch (e) {
+    status.textContent = '● Error';
+    status.className = 'status err';
+    errorOverlay.textContent = e.message;
+    errorOverlay.classList.add('visible');
+  }
+}
+
+function exportSVG() {
+  if (!lastSvg) { runCode(); }
+  if (!lastSvg) return;
+  const blob = new Blob([lastSvg], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'planet_crescent.svg';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function setBg(cls, btn) {
+  previewContainer.className = 'preview-container ' + cls;
+  document.querySelectorAll('.bg-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// Auto-reload on edit
+editor.addEventListener('input', () => {
+  if (document.getElementById('reloadMode').value !== 'auto') return;
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runCode, 300);
+});
+
+// Keyboard shortcuts
+editor.addEventListener('keydown', (e) => {
+  // Ctrl+Enter to run
+  if (e.ctrlKey && e.key === 'Enter') {
+    e.preventDefault();
+    runCode();
+    return;
+  }
+
+  // Tab inserts 2 spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    return;
+  }
+});
+
+// Cursor position tracking
+editor.addEventListener('keyup', updateCursor);
+editor.addEventListener('click', updateCursor);
+
+function updateCursor() {
+  const val = editor.value.substring(0, editor.selectionStart);
+  const lines = val.split('\n');
+  cursorPos.textContent = `Ln ${lines.length}, Col ${lines[lines.length - 1].length + 1}`;
+}
+
+// Resize handle
+const handle = document.getElementById('resizeHandle');
+const editorPane = document.getElementById('editorPane');
+let isResizing = false;
+
+handle.addEventListener('mousedown', (e) => {
+  isResizing = true;
+  handle.classList.add('active');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const pct = (e.clientX / window.innerWidth) * 100;
+  editorPane.style.width = Math.max(20, Math.min(80, pct)) + '%';
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    handle.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+
+// Initial run
+runCode();
+</script>
+</body>
+</html>
